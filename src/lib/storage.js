@@ -20,20 +20,6 @@ export function saveRecords(records) {
   }
 }
 
-// 朝・昼・おやつ・夜の入力を、AIに渡す1つのラベル付きテキストにまとめる。
-// 旧データ（freeform の meal）が残っている場合はそれも拾う。
-export function composeMeal(rec) {
-  if (!rec) return ''
-  const parts = [
-    rec.breakfast && `朝: ${rec.breakfast}`,
-    rec.lunch && `昼: ${rec.lunch}`,
-    rec.snack && `おやつ: ${rec.snack}`,
-    rec.dinner && `夜: ${rec.dinner}`,
-  ].filter(Boolean)
-  if (parts.length === 0 && rec.meal) return rec.meal
-  return parts.join('\n')
-}
-
 export function todayISO() {
   const d = new Date()
   const off = d.getTimezoneOffset()

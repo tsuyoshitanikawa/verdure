@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import RecordForm, { EMPTY } from './components/RecordForm.jsx'
 import Dashboard from './components/Dashboard.jsx'
-import MealAdvice from './components/MealAdvice.jsx'
-import TrainingAdvice from './components/TrainingAdvice.jsx'
-import { loadRecords, saveRecords, todayISO, composeMeal } from './lib/storage.js'
+import { loadRecords, saveRecords, todayISO } from './lib/storage.js'
 
 // 記録に「中身」があるか（体重・各食事・運動・睡眠のいずれか）。旧 meal も考慮。
 function hasContent(r) {
@@ -99,7 +97,7 @@ export default function App() {
           <div className="brand__mark">🌿</div>
           <div>
             <div className="brand__name">Verdure</div>
-            <div className="brand__tag">体重管理 & AIアドバイス</div>
+            <div className="brand__tag">体重・食事・運動・睡眠の記録</div>
           </div>
         </div>
         <label className="date-pill">
@@ -116,8 +114,6 @@ export default function App() {
       <main className="layout">
         <div>
           <RecordForm date={date} value={current} onChange={handleChange} onSave={handleSave} />
-          <MealAdvice meal={composeMeal(current)} weight={current.weight} goal={current.goal} />
-          <TrainingAdvice training={current.training} weight={current.weight} goal={current.goal} />
         </div>
 
         <div>

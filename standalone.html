@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%BF%3C/text%3E%3C/svg%3E" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Verdure — 体重管理 & AI食事アドバイス（standalone）</title>
+    <title>Verdure — 体重管理（standalone）</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
@@ -649,35 +649,7 @@ const MEALS = [
   { key:'snack', label:'おやつ', icon:'🍪', placeholder:'例: ナッツ、ヨーグルト' },
   { key:'dinner', label:'夜', icon:'🌙', placeholder:'例: 玄米と焼き魚' },
 ];
-function composeMeal(rec){
-  if(!rec) return '';
-  const parts=[
-    rec.breakfast&&`朝: ${rec.breakfast}`,
-    rec.lunch&&`昼: ${rec.lunch}`,
-    rec.snack&&`おやつ: ${rec.snack}`,
-    rec.dinner&&`夜: ${rec.dinner}`,
-  ].filter(Boolean);
-  if(parts.length===0&&rec.meal) return rec.meal;
-  return parts.join('\n');
-}
 function hasContent(r){ return !!(r&&(r.weight||r.breakfast||r.lunch||r.snack||r.dinner||r.meal||r.training||r.sleep)); }
-
-/* ---------- API client ---------- */
-const API_BASE = window.VERDURE_API_BASE || '';
-async function postJSON(path, payload){
-  const res = await fetch(`${API_BASE}${path}`, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify(payload),
-  });
-  if(!res.ok){
-    let detail=''; try{ const j=await res.json(); detail=j.error||''; }catch{}
-    throw new Error(detail || `リクエストに失敗しました (HTTP ${res.status})`);
-  }
-  return res.json();
-}
-const fetchMealAdvice = ({meal,weight,goal}) => postJSON('/api/meal-advice', {meal,weight,goal});
-const fetchTrainingAdvice = ({training,weight,goal}) => postJSON('/api/training-advice', {training,weight,goal});
-const isBackendMissing = msg => /Failed to fetch|NetworkError|load failed|HTTP (404|405|501)/i.test(String(msg||''));
 
 /* ---------- WeightChart ---------- */
 function WeightChart({ series }){
@@ -792,81 +764,6 @@ function RecordForm({ date, value, onChange, onSave }){
   );
 }
 
-/* ---------- MealAdvice ---------- */
-function MealAdvice({ meal, weight, goal }){
-  const [loading,setLoading]=useState(false);
-  const [advice,setAdvice]=useState(null);
-  const [error,setError]=useState('');
-  const hasMeal=meal&&meal.trim().length>0;
-  async function onClick(){
-    setLoading(true);setError('');setAdvice(null);
-    try{ const data=await fetchMealAdvice({meal,weight,goal}); setAdvice(data); }
-    catch(e){
-      const msg=String(e&&e.message||'');
-      if(isBackendMissing(msg)){ setError('AI食事アドバイスはバックエンド（/api）が必要です。Vercel にデプロイ（または vercel dev で起動）すると利用できます。'); }
-      else{ setError(msg||'アドバイスの取得に失敗しました。'); }
-    }finally{ setLoading(false); }
-  }
-  return (
-    <section className="card reveal">
-      <div className="card__head"><span className="ico">✨</span><h2>AI 食事アドバイス</h2></div>
-      <div className="advice">
-        <p className="advice__cta-note">{hasMeal?'入力した食事内容をもとに、AIが栄養面のフィードバックを返します。':'左の「食事」欄に内容を入力すると、AIアドバイスを受け取れます。'}</p>
-        <button className="btn btn--primary" onClick={onClick} disabled={!hasMeal||loading}>
-          {loading?(<>分析中<span className="dots"><span/><span/><span/></span></>):(<>🥗 アドバイスをもらう</>)}
-        </button>
-        {error && <div className="error-box">⚠️ {error}</div>}
-        {advice && (
-          <div className="advice__panel">
-            {advice.calorieScore && (<div className="advice__section"><h3>🔥 カロリー評価</h3><span className="badge">{advice.calorieScore}</span><p style={{marginTop:'0.5rem'}}>{advice.calorieComment}</p></div>)}
-            <div className="advice__section"><h3>⚖️ 栄養バランスの改善点</h3>{Array.isArray(advice.balance)?<ul>{advice.balance.map((b,i)=><li key={i}>{b}</li>)}</ul>:<p>{advice.balance}</p>}</div>
-            <div className="advice__section"><h3>🛒 次の食事におすすめの食材</h3>{Array.isArray(advice.recommended)?<ul>{advice.recommended.map((r,i)=><li key={i}>{r}</li>)}</ul>:<p>{advice.recommended}</p>}</div>
-            <div className="advice__section"><h3>🎯 体重管理目標に向けて</h3><p>{advice.goalAdvice}</p></div>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-/* ---------- TrainingAdvice ---------- */
-function TrainingAdvice({ training, weight, goal }){
-  const [loading,setLoading]=useState(false);
-  const [advice,setAdvice]=useState(null);
-  const [error,setError]=useState('');
-  const hasTraining=training&&training.trim().length>0;
-  async function onClick(){
-    setLoading(true);setError('');setAdvice(null);
-    try{ const data=await fetchTrainingAdvice({training,weight,goal}); setAdvice(data); }
-    catch(e){
-      const msg=String(e&&e.message||'');
-      if(isBackendMissing(msg)){ setError('AIトレーニングアドバイスはバックエンド（/api）が必要です。Vercel にデプロイ（または vercel dev で起動）すると利用できます。'); }
-      else{ setError(msg||'アドバイスの取得に失敗しました。'); }
-    }finally{ setLoading(false); }
-  }
-  return (
-    <section className="card reveal">
-      <div className="card__head"><span className="ico">🏋️</span><h2>AI トレーニングアドバイス</h2></div>
-      <div className="advice">
-        <p className="advice__cta-note">{hasTraining?'実施したトレーニング内容をもとに、AIが強度や次のメニューを提案します。':'左の「トレーニング」欄に内容を入力すると、AIアドバイスを受け取れます。'}</p>
-        <button className="btn btn--primary" onClick={onClick} disabled={!hasTraining||loading}>
-          {loading?(<>分析中<span className="dots"><span/><span/><span/></span></>):(<>💪 アドバイスをもらう</>)}
-        </button>
-        {error && <div className="error-box">⚠️ {error}</div>}
-        {advice && (
-          <div className="advice__panel">
-            {advice.intensityScore && (<div className="advice__section"><h3>🔥 強度・ボリューム評価</h3><span className="badge">{advice.intensityScore}</span><p style={{marginTop:'0.5rem'}}>{advice.intensityComment}</p></div>)}
-            <div className="advice__section"><h3>🎯 鍛えられた主な部位</h3>{Array.isArray(advice.targetedAreas)?<ul>{advice.targetedAreas.map((a,i)=><li key={i}>{a}</li>)}</ul>:<p>{advice.targetedAreas}</p>}</div>
-            <div className="advice__section"><h3>🔧 改善ポイント</h3>{Array.isArray(advice.improvements)?<ul>{advice.improvements.map((a,i)=><li key={i}>{a}</li>)}</ul>:<p>{advice.improvements}</p>}</div>
-            <div className="advice__section"><h3>📋 次におすすめの種目</h3>{Array.isArray(advice.nextMenu)?<ul>{advice.nextMenu.map((a,i)=><li key={i}>{a}</li>)}</ul>:<p>{advice.nextMenu}</p>}</div>
-            <div className="advice__section"><h3>🏆 目標に向けて</h3><p>{advice.goalAdvice}</p></div>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
 /* ---------- App ---------- */
 function App(){
   const [records,setRecords]=useState(()=>loadRecords());
@@ -890,14 +787,12 @@ function App(){
   return (
     <div className="app">
       <header className="topbar">
-        <div className="brand"><div className="brand__mark">🌿</div><div><div className="brand__name">Verdure</div><div className="brand__tag">体重管理 & AIアドバイス</div></div></div>
+        <div className="brand"><div className="brand__mark">🌿</div><div><div className="brand__name">Verdure</div><div className="brand__tag">体重・食事・運動・睡眠の記録</div></div></div>
         <label className="date-pill"><span aria-hidden>📅</span><input type="date" value={date} max={todayISO()} onChange={e=>setDate(e.target.value||todayISO())}/></label>
       </header>
       <main className="layout">
         <div>
           <RecordForm date={date} value={current} onChange={handleChange} onSave={handleSave}/>
-          <MealAdvice meal={composeMeal(current)} weight={current.weight} goal={current.goal}/>
-          <TrainingAdvice training={current.training} weight={current.weight} goal={current.goal}/>
         </div>
         <div>
           <Dashboard records={records}/>
