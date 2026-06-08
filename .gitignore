@@ -1,0 +1,12 @@
+node_modules
+dist
+.vercel
+
+# 環境変数（秘密情報）
+.env
+.env.local
+.env.*.local
+
+# ログ・キャッシュ
+*.log
+.DS_Store
