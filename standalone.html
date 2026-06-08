@@ -783,6 +783,31 @@ function App(){
   const handleChange=next=>setRecords(p=>({...p,[date]:next}));
   const handleSave=()=>setRecords(p=>{const rec=p[date]||EMPTY;if(!hasContent(rec)){const c={...p};delete c[date];return c;}return {...p,[date]:rec};});
   const deleteRecord=d=>setRecords(p=>{const c={...p};delete c[d];return c;});
+  const [syncMsg,setSyncMsg]=useState('');
+  function exportData(){
+    const blob=new Blob([JSON.stringify(records,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=`verdure-backup-${todayISO()}.json`; a.click();
+    URL.revokeObjectURL(url);
+    setSyncMsg(`✓ ${Object.keys(records).length}日分のデータを書き出しました`);
+  }
+  function importData(e){
+    const file=e.target.files&&e.target.files[0]; e.target.value='';
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=()=>{
+      try{
+        const data=JSON.parse(reader.result);
+        if(!data||typeof data!=='object'||Array.isArray(data)){ setSyncMsg('⚠️ ファイル形式が正しくありません'); return; }
+        const hasExisting=Object.keys(records).length>0;
+        if(hasExisting&&!window.confirm('読み込むと、同じ日付の記録は読み込んだファイルの内容で上書きされます。続けますか？')) return;
+        setRecords(p=>({...p,...data}));
+        setSyncMsg(`✓ ${Object.keys(data).length}日分のデータを読み込みました`);
+      }catch{ setSyncMsg('⚠️ 読み込みに失敗しました（JSONファイルを選んでください）'); }
+    };
+    reader.readAsText(file);
+  }
   const history=useMemo(()=>Object.entries(records).filter(([,r])=>hasContent(r)).sort((a,b)=>a[0]<b[0]?1:-1),[records]);
   return (
     <div className="app">
@@ -812,6 +837,15 @@ function App(){
                 ))}
               </div>
             )}
+          </section>
+          <section className="card reveal">
+            <div className="card__head"><span className="ico">🔄</span><h2>データの管理（端末間コピー・バックアップ）</h2></div>
+            <p className="advice__cta-note">別の端末に移すには、この端末で「書き出す」→ ファイルをAirDropやメールで送り、移行先で「読み込む」を押してください。バックアップにも使えます。</p>
+            <div style={{display:'flex',flexWrap:'wrap',gap:'0.6rem'}}>
+              <button className="btn btn--ghost" style={{flex:'1 1 150px'}} onClick={exportData}>⬇️ データを書き出す</button>
+              <label className="btn btn--ghost" style={{flex:'1 1 150px'}}>⬆️ データを読み込む<input type="file" accept="application/json,.json" onChange={importData} style={{display:'none'}}/></label>
+            </div>
+            {syncMsg && <div className="advice__cta-note" style={{marginTop:'0.8rem',marginBottom:0}}>{syncMsg}</div>}
           </section>
         </div>
       </main>

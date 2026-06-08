@@ -82,6 +82,50 @@ export default function App() {
     })
   }
 
+  // --- 端末間コピー / バックアップ ---
+  const [syncMsg, setSyncMsg] = useState('')
+
+  function exportData() {
+    const blob = new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `verdure-backup-${todayISO()}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    setSyncMsg(`✓ ${Object.keys(records).length}日分のデータを書き出しました`)
+  }
+
+  function importData(e) {
+    const file = e.target.files && e.target.files[0]
+    e.target.value = '' // 同じファイルを再選択できるようにリセット
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result)
+        if (!data || typeof data !== 'object' || Array.isArray(data)) {
+          setSyncMsg('⚠️ ファイル形式が正しくありません')
+          return
+        }
+        const hasExisting = Object.keys(records).length > 0
+        if (
+          hasExisting &&
+          !window.confirm(
+            '読み込むと、同じ日付の記録は読み込んだファイルの内容で上書きされます。続けますか？',
+          )
+        ) {
+          return
+        }
+        setRecords((prev) => ({ ...prev, ...data })) // 同じ日付は読み込み側を優先
+        setSyncMsg(`✓ ${Object.keys(data).length}日分のデータを読み込みました`)
+      } catch {
+        setSyncMsg('⚠️ 読み込みに失敗しました（JSONファイルを選んでください）')
+      }
+    }
+    reader.readAsText(file)
+  }
+
   const history = useMemo(
     () =>
       Object.entries(records)
@@ -160,6 +204,40 @@ export default function App() {
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+          </section>
+
+          <section className="card reveal">
+            <div className="card__head">
+              <span className="ico">🔄</span>
+              <h2>データの管理（端末間コピー・バックアップ）</h2>
+            </div>
+            <p className="advice__cta-note">
+              別の端末に移すには、この端末で「書き出す」→ ファイルをAirDropやメールで送り、移行先で
+              「読み込む」を押してください。バックアップにも使えます。
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
+              <button
+                className="btn btn--ghost"
+                style={{ flex: '1 1 150px' }}
+                onClick={exportData}
+              >
+                ⬇️ データを書き出す
+              </button>
+              <label className="btn btn--ghost" style={{ flex: '1 1 150px' }}>
+                ⬆️ データを読み込む
+                <input
+                  type="file"
+                  accept="application/json,.json"
+                  onChange={importData}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
+            {syncMsg && (
+              <div className="advice__cta-note" style={{ marginTop: '0.8rem', marginBottom: 0 }}>
+                {syncMsg}
               </div>
             )}
           </section>
